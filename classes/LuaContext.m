@@ -7,6 +7,7 @@
 //
 
 #import "LuaContext.h"
+#import "LuaCallable.h"
 #import "LuaExport.h"
 #import "LuaExportMetaData.h"
 
@@ -476,6 +477,10 @@ static inline id toObjC(lua_State *L, int index) {
             return result;
         }
         case LUA_TFUNCTION:
+            lua_pushvalue(L, index);
+            lua_Integer ref = luaL_ref(L, LUA_REGISTRYINDEX);
+            return [[LuaCallable alloc] initWithHandle:ref context:L];
+            
         case LUA_TTHREAD:
         case LUA_TLIGHTUSERDATA:
         default:
@@ -483,15 +488,9 @@ static inline id toObjC(lua_State *L, int index) {
     }
 }
 
-- (id)call:(const char*)name with:(NSArray *)args error:(NSError *__autoreleasing *)error {
-    lua_getglobal(L, name);
-    if( lua_type(L, -1) != LUA_TFUNCTION ) {
-        if( error )
-            *error = [NSError errorWithDomain:LuaErrorDomain
-                                         code:LuaError_Invalid
-                                     userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Function %s not found", name] }];
-        return nil;
-    }
+// Helper function to perform a call for both call and anonCall. Requires a callable object on the LUA
+// stack already
+- (id)callWith:(NSArray *)args name:(const char *)name error:(NSError *__autoreleasing *)error {
     int count = 0;
     for( id arg in args ) {
         count += [self fromObjC:arg] ? 1 : 0;
@@ -505,6 +504,36 @@ static inline id toObjC(lua_State *L, int index) {
     }
     lua_pop(L, 1);
     return result;
+}
+
+- (id)call:(const char*)name with:(NSArray *)args error:(NSError *__autoreleasing *)error {
+    lua_getglobal(L, name);
+    if( lua_type(L, -1) != LUA_TFUNCTION ) {
+        if( error )
+            *error = [NSError errorWithDomain:LuaErrorDomain
+                                         code:LuaError_Invalid
+                                     userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Function %s not found", name] }];
+        return nil;
+    }
+    return [self callWith:args name:name error:error];
+}
+
+-(id)anonCall:(LuaCallable *)callable with:(NSArray *)args error:(NSError *__autoreleasing *)error {
+    
+    if (callable.L != L) {
+        if ( error )
+            *error = [NSError errorWithDomain:LuaErrorDomain code:LuaError_Invalid userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Callable does not belong to this context"] }];
+        return nil;
+    }
+    
+    // Retrieve function
+    int type = lua_geti(L, LUA_REGISTRYINDEX, callable.handle);
+    if ( type != LUA_TFUNCTION) {
+        if ( error )
+            *error = [NSError errorWithDomain:LuaErrorDomain code:LuaError_Invalid userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"handle does not point to a callable object"] }];
+        return nil;
+    }
+    return [self callWith:args name:"<<anonymous>>" error:error];
 }
 
 - (id)objectForKeyedSubscript:(id)key {
