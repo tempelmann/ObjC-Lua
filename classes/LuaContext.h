@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "LuaCallable.h"
 
 #define STRINGIZE_LUA(...) #__VA_ARGS__
 #define STRINGIZE2_LUA(...) STRINGIZE_LUA(__VA_ARGS__)
@@ -79,6 +80,15 @@ typedef NS_ENUM(NSUInteger, LuaErrorCode) {
  @return `YES` on success, otherwise `NO` and `error` will be set
  */
 - (id)call:(const char*)name with:(NSArray*)args error:(out NSError**)error;
+
+/**
+ @param name A LuaCallable object previously returned from Lua.
+ @param args Arguments to pass to the function. Any non-specified args will be passed as if they were set to [NSNull null]
+ @param error will only be set if this method returns `NO`
+ @return `YES` on success, otherwise `NO` and `error` will be set
+ */
+- (id)anonCall:(LuaCallable *)callable with:(NSArray *)args error:(NSError *__autoreleasing *)error;
+
 
 /**
  @param key The name of a Lua variable to retreive from this context
