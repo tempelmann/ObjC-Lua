@@ -231,6 +231,9 @@ static inline void setArgumentAt(NSInvocation *invocation, NSUInteger idx, NSUIn
         case _C_UCHR:
             SET_BUFFER(unsigned char, unsignedCharValue);
             break;
+        case _C_BOOL:
+            SET_BUFFER(BOOL, boolValue);
+            break;
         case _C_SHT:
             SET_BUFFER(short, shortValue);
             break;
