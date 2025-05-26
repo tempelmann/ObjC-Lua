@@ -797,6 +797,7 @@ static inline BOOL CATransform3DEqualToTransformEpsilon(CATransform3D t1, CATran
             // This is for checking that we'll not crash if we release the LuaContext before the LuaCallable object:
             retainedCallable = obj;
         } XCTAssert( ExportObjectInstanceCount == 0, "ExportObject leak (%s): %d", __func__, ExportObjectInstanceCount);
+        NSLog(@"%@", retainedCallable); // using retainedCallable so that it won't get removed by optimizer
     }
 }
 
