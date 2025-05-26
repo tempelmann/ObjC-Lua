@@ -464,7 +464,7 @@ static inline id toObjC(lua_State *L, int index) {
                 
                 lua_pushnil(L);  /* first key */
                 while( lua_next(L, -2) ) {
-                    int index2 = (int)lua_tonumber(L, -2) - 1;	// shouldn't this be rather `lua_tointeger`?
+                    lua_Integer index2 = lua_tointeger(L, -2) - 1;
                     id object = toObjC(L, -1);
                     if( ! object )
                         object = [NSNull null];
