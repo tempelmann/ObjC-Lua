@@ -261,7 +261,7 @@ static inline void setArgumentAt(NSInvocation *invocation, NSUInteger idx, NSUIn
         case _C_ID:
         	if (size >= sizeof(id)) {
             	*(id __unsafe_unretained*)buffer = obj;
-			}
+            }
             break;
         case _C_STRUCT_B:
         {
@@ -507,7 +507,7 @@ static inline id getObjectResult(NSInvocation *invocation) {
         return nil;
 
     [args enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-    //NSLog(@"%ld: %s", idx, [metaData->signature getArgumentTypeAtIndex:idx+2]);
+        //NSLog(@"%ld: %s", idx, [metaData->signature getArgumentTypeAtIndex:idx+2]);
         setArgumentAt(metaData->invocation, idx, [metaData->argumentSizes[idx] unsignedIntValue], obj, metaData->skipped);
     }];
     // make sure all un-passed args are nil'd out
