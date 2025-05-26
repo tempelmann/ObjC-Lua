@@ -314,7 +314,7 @@ static const luaL_Reg loadedlibs[] = {
         else
             return NO;
     }
-    else if( [object conformsToProtocol:@protocol(LuaExport)] ) {
+    else if( [object conformsToProtocol:@protocol(LUA_EXPORT_TYPE)] ) {
         NSString *clasName = NSStringFromClass([object class]);
         //NSLog(@"%@ conforms", clasName);
         LuaExportMetaData *exportData = _exportedClasses[clasName];
@@ -322,7 +322,7 @@ static const luaL_Reg loadedlibs[] = {
         if( ! exportData )
         {
             exportData = [LuaExportMetaData new];
-            Protocol *exportProtocol = @protocol(LuaExport);
+            Protocol *exportProtocol = @protocol(LUA_EXPORT_TYPE);
             for( Class clas = [object class]; clas; clas = [clas superclass] )
             {
                 unsigned int protocolCount = 0;

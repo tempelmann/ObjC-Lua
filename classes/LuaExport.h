@@ -6,7 +6,9 @@
 //
 //
 
-#import <Foundation/Foundation.h>
+#ifndef LUA_EXPORT_TYPE
+    #define LUA_EXPORT_TYPE LuaExport
+#endif
 
 /**
  If an object of a type other than NSNull, NSNumber, NSString, NSArray, and NSDictionary is passed into a
@@ -16,7 +18,7 @@
 
  For example, to allow your Lua script to control a UIView:
 
-    @protcol UIViewLuaExports <LuaExport>
+    @protcol UIViewLuaExports <LUA_EXPORT_TYPE>
 
     @property(nonatomic) CGFloat alpha;
     @property(nonatomic) CGRect bounds;
@@ -38,5 +40,11 @@
     @implementation UIView (UIViewLuaExports)
     @end
  */
-@protocol LuaExport
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wduplicate-protocol"
+
+@protocol LUA_EXPORT_TYPE
 @end
+
+#pragma clang diagnostic pop
