@@ -686,10 +686,10 @@ static inline BOOL CATransform3DEqualToTransformEpsilon(CATransform3D t1, CATran
     LuaContext *ctx = [LuaContext new];
 
     ctx[@"v22"] = ^{
-        return @(22);
+        return @22;
     };
     ctx[@"v33"] = ^{
-        return @(33);
+        return @33;
     };
 
     NSString *script = @"return v22() + v33()";
@@ -698,7 +698,7 @@ static inline BOOL CATransform3DEqualToTransformEpsilon(CATransform3D t1, CATran
     [ctx parse:script error:&error];
     XCTAssert( ! error, @"failed to load script: %@", error);
 
-    XCTAssert( [ctx.parseResult isEqual:@(55)], @"block invocation failed");
+    XCTAssert( [ctx.parseResult isEqual:@55], @"block invocation failed");
 
     } XCTAssert( ExportObjectInstanceCount == 0, "ExportObject leak (%s): %d", __func__, ExportObjectInstanceCount);
 }
@@ -738,9 +738,9 @@ static inline BOOL CATransform3DEqualToTransformEpsilon(CATransform3D t1, CATran
     NSError *error = nil;
 
     NSString *script =
-@"storedObj = null"
-" function storeObj (obj) storedObj = obj end"
-" function returnObj () return storedObj end";
+        @"storedObj = null"
+        " function storeObj (obj) storedObj = obj end"
+        " function returnObj () return storedObj end";
     [ctx parse:script error:&error];
     XCTAssert( ! error, @"failed to load script: %@", error);
 
@@ -761,48 +761,55 @@ static inline BOOL CATransform3DEqualToTransformEpsilon(CATransform3D t1, CATran
 
 - (void)testCallable {
     @autoreleasepool {
-        LuaContext *ctx = [LuaContext new];
+        LuaCallable *retainedCallable;
         
-        NSError *error = nil;
-        
-        NSString *script =
-@"function foo()"
- "        return function(a)"
- "            return a*3"
- "        end"
- "    end";
-
-        //id result;
-        
-        [ctx parse:script error:&error];
-        XCTAssert( ! error, @"failed to load script: %@", error);
-        
-        id obj = [ctx call:"foo" with:nil error:&error];
-        XCTAssert(! error, @"Failed to execute foo: %@", error);
-        XCTAssert([[obj className] isEqualToString:@"LuaCallable"], @"Expected a a LuaCallable object, got %@", [obj className]);
-        
-        id result = [ctx anonCall:obj with:@[@(2)] error:&error];
-        
-        XCTAssert(! error, @"Failed to execute anonymous function: %@", error);
-        
-        NSInteger iresult = [result integerValue];
-        XCTAssert(iresult == 6, @"Expected result 6, got %@", result);
+        @autoreleasepool {
+            LuaContext *ctx = [LuaContext new];
+            NSError *error = nil;
+            
+            NSString *script =
+                @"function foo()"
+                 "        return function(a)"
+                 "            return a*3"
+                 "        end"
+                 "    end";
+            
+            [ctx parse:script error:&error];
+            XCTAssert( ! error, @"failed to load script: %@", error);
+            
+            // Call foo()
+            id obj = [ctx call:"foo" with:nil error:&error];
+            XCTAssert(! error, @"Failed to execute foo: %@", error);
+            XCTAssert([[obj className] isEqualToString:@"LuaCallable"], @"Expected a LuaCallable object, got %@", [obj className]);
+            
+            // Call the function that was returned by foo()
+            id result = [ctx anonCall:obj with:@[@2] error:&error];
+            XCTAssert(! error, @"Failed to execute anonymous function: %@", error);
+            NSInteger iresult = [result integerValue];
+            XCTAssertEqual(iresult, 6);
+            
+            // Perform a second invocation to make sure we handle multiple calls correctly
+            result = [ctx anonCall:obj with:@[@4] error:&error];
+            XCTAssert(! error, @"Failed to execute anonymous function: %@", error);
+            iresult = [result integerValue];
+            XCTAssertEqual(iresult, 12);
+            
+            // This is for checking that we'll not crash if we release the LuaContext before the LuaCallable object:
+            retainedCallable = obj;
+        } XCTAssert( ExportObjectInstanceCount == 0, "ExportObject leak (%s): %d", __func__, ExportObjectInstanceCount);
     }
 }
 
 - (void)testCallableTable {
     @autoreleasepool {
         LuaContext *ctx = [LuaContext new];
-        
         NSError *error = nil;
         
         NSString *script =
-@"function foo()"
- "        return {bar = function(x) return x+2 end,"
- "                baz = function(x) return x*2 end}"
- "    end";
-
-        //id result;
+            @"function foo()"
+             "        return {bar = function(x) return x+2 end,"
+             "                baz = function(x) return x*2 end}"
+             "    end";
         
         [ctx parse:script error:&error];
         XCTAssert( ! error, @"failed to load script: %@", error);
@@ -810,29 +817,25 @@ static inline BOOL CATransform3DEqualToTransformEpsilon(CATransform3D t1, CATran
         id obj = [ctx call:"foo" with:nil error:&error];
         XCTAssert(! error, @"Failed to execute foo: %@", error);
         
-        
         id bar = [obj valueForKey:@"bar"];
-        XCTAssert([[bar className] isEqualToString:@"LuaCallable"], @"Expected a a LuaCallable object, got %@", [bar className]);
+        XCTAssert([[bar className] isEqualToString:@"LuaCallable"], @"Expected a LuaCallable object, got %@", [bar className]);
         id baz = [obj valueForKey:@"baz"];
-        XCTAssert([[bar className] isEqualToString:@"LuaCallable"], @"Expected a a LuaCallable object, got %@", [bar className]);
+        XCTAssert([[bar className] isEqualToString:@"LuaCallable"], @"Expected a LuaCallable object, got %@", [bar className]);
 
-        id result = [ctx anonCall:bar with:@[@(3)] error:&error];
+        id result = [ctx anonCall:bar with:@[@3] error:&error];
         
         XCTAssert(! error, @"Failed to execute anonymous function: %@", error);
         
         NSInteger iresult = [result integerValue];
-        XCTAssert(iresult == 5, @"Expected result 6, got %@", result);
+        XCTAssertEqual(iresult, 5);
 
-        result = [ctx anonCall:baz with:@[@(3)] error:&error];
+        result = [ctx anonCall:baz with:@[@4] error:&error];
         
         XCTAssert(! error, @"Failed to execute anonymous function: %@", error);
         
         iresult = [result integerValue];
-        XCTAssert(iresult == 6, @"Expected result 6, got %@", result);
-
-    }
+        XCTAssertEqual(iresult, 8);
+    } XCTAssert( ExportObjectInstanceCount == 0, "ExportObject leak (%s): %d", __func__, ExportObjectInstanceCount);
 }
-
-
 
 @end

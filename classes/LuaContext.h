@@ -95,6 +95,7 @@ typedef NS_ENUM(NSUInteger, LuaErrorCode) {
  @return The value of `key` or nil if `key` is does not exist
  */
 - (id)objectForKeyedSubscript:(id)key;
+
 /**
  @param key The name of a Lua variable to set in this context
  @param object The value to set `key` to in this context

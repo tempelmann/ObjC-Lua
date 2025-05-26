@@ -56,6 +56,8 @@ static const struct luaL_Reg luaWrapperMetaFunctions[] = {
     NSMutableDictionary *_exportedClasses;
     NSMutableArray *_exportedBlocks;
     NSMutableArray *_retainedObjects;
+    NSPointerArray *_weakCallables;
+    Class _blockClass;
     id _parseResult;
 }
 @end
@@ -79,7 +81,13 @@ static const luaL_Reg loadedlibs[] = {
   {NULL, NULL}
 };
 
+static NSMapTable<id,LuaContext*> *luaContextWeakContexts;
+
 @implementation LuaContext
+
++ (void)initialize {
+    luaContextWeakContexts = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPersonality valueOptions:NSPointerFunctionsWeakMemory];
+}
 
 - (id)init {
     if( (self = [super init]) ) {
@@ -98,19 +106,31 @@ static const luaL_Reg loadedlibs[] = {
         luaL_newmetatable(L, LuaWrapperObjectMetatableName);
         luaL_setfuncs(L, luaWrapperMetaFunctions, 0);
         lua_pop(L, 1);
-
+        
+        _blockClass = NSClassFromString(@"NSBlock");
         _exportedClasses = [NSMutableDictionary new];
         _exportedBlocks = [NSMutableArray new];
         _retainedObjects = [NSMutableArray new];
+        _weakCallables = [NSPointerArray pointerArrayWithOptions:NSPointerFunctionsWeakMemory];
+        [luaContextWeakContexts setObject:self forKey:[NSValue valueWithPointer:L]];
     }
     return self;
 }
 
 - (void)dealloc {
     if( L ) {
+        // Release any LuaCallable objects (if we don't, we'll run into errors if [LuaCallable dealloc] gets caller later)
+        for (LuaCallable *callable in _weakCallables) {
+            [callable destroy]; // callable can already be nil here
+        }
+        NSInteger c = luaContextWeakContexts.count;
+        [luaContextWeakContexts removeObjectForKey:[NSValue valueWithPointer:L]];
+        assert (luaContextWeakContexts == nil || c == luaContextWeakContexts.count+1);
         lua_close(L);
+        L = nil;
     }
     #if ! __has_feature(objc_arc)
+        [_weakCallables release];
         [_exportedClasses release];
         [_exportedBlocks release];
         [_retainedObjects release];
@@ -377,7 +397,7 @@ static const luaL_Reg loadedlibs[] = {
         else
             return NO;
     }
-    else if( [object isKindOfClass:NSClassFromString(@"NSBlock")] ) {
+    else if( [object isKindOfClass:_blockClass] ) {
         BOOL retVal = NO;
     	const char *sig = blockSig (object);
     	const char *name = "block";
@@ -477,10 +497,18 @@ static inline id toObjC(lua_State *L, int index) {
             return result;
         }
         case LUA_TFUNCTION:
-            lua_pushvalue(L, index);
-            lua_Integer ref = luaL_ref(L, LUA_REGISTRYINDEX);
-            return [[LuaCallable alloc] initWithHandle:ref context:L];
-            
+            // https://stackoverflow.com/a/41410679/43615
+            // Warning: This only works if the function is the last argument, as it'll remove any args following this one!
+            {
+                LuaContext *context = [luaContextWeakContexts objectForKey:[NSValue valueWithPointer:L]];
+                if (context == nil) {
+                    return nil;
+                }
+                [context->_weakCallables compact];
+                LuaCallable *callable = [[LuaCallable alloc] initWithState:L index:index];
+                [context->_weakCallables addPointer:(__bridge void * _Nullable)(callable)];
+                return callable;
+            }
         case LUA_TTHREAD:
         case LUA_TLIGHTUSERDATA:
         default:
@@ -509,28 +537,28 @@ static inline id toObjC(lua_State *L, int index) {
 - (id)call:(const char*)name with:(NSArray *)args error:(NSError *__autoreleasing *)error {
     lua_getglobal(L, name);
     if( lua_type(L, -1) != LUA_TFUNCTION ) {
-        if( error )
+        if( error ) {
             *error = [NSError errorWithDomain:LuaErrorDomain
                                          code:LuaError_Invalid
                                      userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Function %s not found", name] }];
+        }
         return nil;
     }
     return [self callWith:args name:name error:error];
 }
 
 -(id)anonCall:(LuaCallable *)callable with:(NSArray *)args error:(NSError *__autoreleasing *)error {
-    
-    if (callable.L != L) {
-        if ( error )
+    if( callable.L != L ) {
+        if( error ) {
             *error = [NSError errorWithDomain:LuaErrorDomain code:LuaError_Invalid userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Callable does not belong to this context"] }];
+        }
         return nil;
     }
-    
-    // Retrieve function
-    int type = lua_geti(L, LUA_REGISTRYINDEX, callable.handle);
-    if ( type != LUA_TFUNCTION) {
-        if ( error )
+    int type = lua_geti(L, LUA_REGISTRYINDEX, callable.handle);    // Retrieve function
+    if( type != LUA_TFUNCTION ) {
+        if( error ) {
             *error = [NSError errorWithDomain:LuaErrorDomain code:LuaError_Invalid userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"handle does not point to a callable object"] }];
+        }
         return nil;
     }
     return [self callWith:args name:"<<anonymous>>" error:error];

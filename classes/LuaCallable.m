@@ -7,12 +7,15 @@
 //
 
 #import "LuaCallable.h"
+#import "LuaContext.h"
 
 @implementation LuaCallable
 
-- (id)initWithHandle:(lua_Integer)handle context:(lua_State *)L {
+- (id)initWithState:(lua_State *)L index:(int)index {
+    lua_pushvalue(L, index);
+    lua_Integer ref = luaL_ref(L, LUA_REGISTRYINDEX);
     if (self = [super init]) {
-        _handle = handle;
+        _handle = (int) ref;
         _L = L;
     } else {
         _L = NULL;
@@ -21,14 +24,19 @@
 }
 
 - (void)dealloc {
-    if (_L != NULL) {
-        luaL_unref(_L, LUA_REGISTRYINDEX, (int)_handle);
+    [self destroy];
+}
+
+- (void)destroy {
+    if (_L) {
+        lua_State *L = _L;
         _L = NULL;
+        luaL_unref(L, LUA_REGISTRYINDEX, (int)_handle);
     }
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"Anonymous callable object with handle %lld",_handle];
+    return [NSString stringWithFormat:@"Anonymous callable object with handle %d",_handle];
 }
 
 - (NSString *)debugDescription {

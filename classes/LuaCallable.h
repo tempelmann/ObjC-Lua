@@ -13,12 +13,15 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class LuaContext;
+
 @interface LuaCallable : NSObject
 
-@property (readonly) lua_Integer handle;
+@property (readonly) int handle;
 @property (readonly,assign) lua_State *L;
 
--(id)initWithHandle:(lua_Integer)handle context:(lua_State *)L;
+- (id)initWithState:(lua_State *)L index:(int)index;
+- (void)destroy;
 
 @end
 
