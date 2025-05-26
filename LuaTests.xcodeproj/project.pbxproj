@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A4DD7EBE2DE4E20700669B39 /* LuaContext.m in Sources */ = {isa = PBXBuildFile; fileRef = D4A9E53C18A95CF4002A9EA5 /* LuaContext.m */; };
 		A4E8F5AD278BA5C000CED5AB /* lprefix.h in Headers */ = {isa = PBXBuildFile; fileRef = A4E8F5A7278BA5C000CED5AB /* lprefix.h */; };
 		A4E8F5AE278BA5C000CED5AB /* lopnames.h in Headers */ = {isa = PBXBuildFile; fileRef = A4E8F5A8278BA5C000CED5AB /* lopnames.h */; };
 		A4E8F5B1278BA5C000CED5AB /* lutf8lib.c in Sources */ = {isa = PBXBuildFile; fileRef = A4E8F5AA278BA5C000CED5AB /* lutf8lib.c */; };
@@ -621,6 +622,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A4DD7EBE2DE4E20700669B39 /* LuaContext.m in Sources */,
 				D394B0322C5EB9C600D875EA /* LuaCallable.m in Sources */,
 				E47E87321B04852F00108EAE /* LuaTests.m in Sources */,
 			);

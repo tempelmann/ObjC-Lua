@@ -26,7 +26,7 @@ const CATransform3D CATransform3DIdentity = {
     0, 0, 0, 1 };
 #endif
 
-NSString *const LuaErrorDomain = @"LuaErrorDomain";
+NSString *const LuaErrorDomain = @"Lua";
 
 const char *LuaWrapperObjectMetatableName = "LuaWrapperObjectMetaTable";
 
@@ -67,6 +67,7 @@ static int luaPanicked(lua_State *L) {
     return 0;
 }
 
+/*
 static const luaL_Reg loadedlibs[] = {
   {"_G", luaopen_base},
 //  {LUA_LOADLIBNAME, luaopen_package},
@@ -80,6 +81,7 @@ static const luaL_Reg loadedlibs[] = {
 //  {LUA_DBLIBNAME, luaopen_debug},
   {NULL, NULL}
 };
+*/
 
 static NSMapTable<id,LuaContext*> *luaContextWeakContexts;
 
@@ -95,11 +97,15 @@ static NSMapTable<id,LuaContext*> *luaContextWeakContexts;
         lua_atpanic(L, &luaPanicked);
 
         // load the lua libraries
-        const luaL_Reg *lib;
-        for (lib = loadedlibs; lib->func; ++lib) {
-            luaL_requiref(L, lib->name, lib->func, 1);
-            lua_pop(L, 1);  /* remove lib */
-        }
+        #if LUAJIT || 1
+            luaL_openlibs(L);
+        #else
+            const luaL_Reg *lib;
+            for (lib = loadedlibs; lib->func; ++lib) {
+                luaL_requiref(L, lib->name, lib->func, 1);
+                lua_pop(L, 1);  /* remove lib */
+            }
+        #endif
 
         lua_register(L, "dumpVar", luaDumpVar);
 
@@ -143,6 +149,30 @@ static NSMapTable<id,LuaContext*> *luaContextWeakContexts;
     return _parseResult;
 }
 
+- (BOOL)load:(NSString *)script error:(NSError *__autoreleasing *)error {
+	#if LUAJIT
+		// not sure if that works at all:
+		luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE|LUAJIT_MODE_ON);
+	#endif
+    int result = luaL_loadstring(L, [script UTF8String]);
+    if (result != LUA_OK) {
+        // we had an error -> report it and discard the item on the stack
+        return [self parse2:result error:error];
+    } else {
+        // keep item on the stack so that we can invoke `runWithError:` repeatedly
+        #if LUAJIT
+            // not sure if that works at all:
+            luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE|LUAJIT_MODE_ON);
+        #endif
+        return YES;
+    }
+}
+
+- (BOOL)runWithError:(NSError *__autoreleasing *)error {
+    // the loaded script should be on the top of stack, so let's duplicated it
+    lua_pushvalue (L, lua_gettop(L));
+    return [self parse2:LUA_OK error:error];
+}
 
 - (BOOL)parse2:(int)result error:(NSError *__autoreleasing *)error {
     if( result == LUA_OK ) {
@@ -526,8 +556,10 @@ static inline id toObjC(lua_State *L, int index) {
     int err = lua_pcall(L, count, 1, 0);
     id result = toObjC(L, -1);
     if( err != LUA_OK ) {
-        if( error )
-            *error = [NSError errorWithDomain:LuaErrorDomain code:err userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"function %s threw an error: %@", name, result] }];
+        if( error ) {
+        	NSString *desc = [NSString stringWithFormat:@"function %s threw an error: %@", name, result];
+            *error = [NSError errorWithDomain:LuaErrorDomain code:err userInfo:@{ NSLocalizedDescriptionKey: desc }];
+        }
         result = nil;
     }
     lua_pop(L, 1);
@@ -586,6 +618,13 @@ static inline id toObjC(lua_State *L, int index) {
     }
     if( [self fromObjC:object] )
         lua_setglobal(L, [key UTF8String]);
+}
+
+- (BOOL)hasGlobalName:(NSString*)name {
+    lua_getglobal(L, [name UTF8String]);
+    BOOL result = lua_type(L, -1) != LUA_TNIL;
+    lua_pop(L, 1);
+    return result;
 }
 
 @end

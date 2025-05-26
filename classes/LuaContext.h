@@ -102,4 +102,11 @@ typedef NS_ENUM(NSUInteger, LuaErrorCode) {
  */
 - (void)setObject:(id)object forKeyedSubscript:(NSObject <NSCopying> *)key;
 
+/*
+ * added by TT for use in FAFv2
+ */
+- (BOOL)load:(NSString *)script error:(NSError *__autoreleasing *)error;
+- (BOOL)runWithError:(NSError *__autoreleasing *)error;
+- (BOOL)hasGlobalName:(NSString*)name;
+
 @end
