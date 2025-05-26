@@ -82,7 +82,7 @@ typedef NS_ENUM(NSUInteger, LuaErrorCode) {
 - (id)call:(const char*)name with:(NSArray*)args error:(out NSError**)error;
 
 /**
- @param name A LuaCallable object previously returned from Lua.
+ @param callable A LuaCallable object previously returned from Lua.
  @param args Arguments to pass to the function. Any non-specified args will be passed as if they were set to [NSNull null]
  @param error will only be set if this method returns `NO`
  @return `YES` on success, otherwise `NO` and `error` will be set
